@@ -5,3 +5,4 @@ underthesea
 sentence-transformers
 joblib
 gunicorn
+hf_xet
