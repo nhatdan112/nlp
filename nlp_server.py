@@ -6,7 +6,6 @@ from sentence_transformers import SentenceTransformer, util # type: ignore
 import joblib
 import os
 from collections import defaultdict
-import socket
 
 app = Flask(__name__)
 CORS(app)
@@ -70,8 +69,16 @@ def get_combined_context_mapping():
         combined[key].extend(genres)
     return combined
 
-# Tải mô hình sentence-transformers
-model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
+# Biến toàn cục cho model, khởi tạo là None
+model = None
+
+# Hàm tải model (lazy loading)
+def load_model():
+    global model
+    if model is None:
+        print("Loading SentenceTransformer model...")
+        model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
+    return model
 
 # Hàm lưu ánh xạ học được
 def save_learned_context_mapping():
@@ -87,6 +94,9 @@ def generate_recommendations():
 
     prompt = data.get('prompt')
     print(f"Processing prompt: {prompt}")
+
+    # Tải model nếu chưa tải
+    load_model()
 
     # Tiền xử lý prompt tiếng Việt
     prompt = prompt.strip().lower()
@@ -153,14 +163,14 @@ def generate_recommendations():
         if not movies:
             return jsonify({'error': 'No movies found matching the prompt'}), 404
 
-        # Loại bỏ trùng lặp và lấy tối đa 10 phim (tăng từ 5 lên 10)
+        # Loại bỏ trùng lặp và lấy tối đa 10 phim
         seen_ids = set()
         unique_movies = []
         for movie in movies:
             if movie['id'] not in seen_ids:
                 seen_ids.add(movie['id'])
                 unique_movies.append(movie)
-        movies = unique_movies[:10]  # Tăng giới hạn từ 5 lên 10
+        movies = unique_movies[:10]
 
         # Học từ ngữ cảnh (nếu có context_keywords)
         if context_keywords and genres:
@@ -215,6 +225,9 @@ def describe_movie():
 
     description = data.get('description')
     print(f"Processing description: {description}")
+
+    # Tải model nếu chưa tải
+    load_model()
 
     # Tiền xử lý mô tả tiếng Việt
     description = description.strip().lower()
@@ -297,14 +310,14 @@ def describe_movie():
         if not movies:
             return jsonify({'error': 'No movies found matching the description'}), 404
 
-        # Loại bỏ trùng lặp và lấy tối đa 10 phim (tăng từ 5 lên 10)
+        # Loại bỏ trùng lặp và lấy tối đa 10 phim
         seen_ids = set()
         unique_movies = []
         for movie in movies:
             if movie['id'] not in seen_ids:
                 seen_ids.add(movie['id'])
                 unique_movies.append(movie)
-        movies = unique_movies[:10]  # Tăng giới hạn từ 5 lên 10
+        movies = unique_movies[:10]
 
         # Học từ ngữ cảnh (nếu có context_keywords)
         if context_keywords and genres:
@@ -323,24 +336,6 @@ def describe_movie():
     except Exception as e:
         print(f"Error during description processing: {str(e)}")
         return jsonify({'error': str(e)}), 500
-def get_local_ip():
-    try:
-        # Tạo một socket kết nối tạm thời để lấy IP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Kết nối đến một địa chỉ công cộng (không thực sự gửi dữ liệu)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception as e:
-        print(f"Error getting local IP: {e}")
-        return "127.0.0.1"  # Fallback to localhost if there's an error
-
-# Endpoint để ứng dụng Flutter khám phá server
-@app.route('/discover', methods=['GET'])
-def discover():
-    ip = get_local_ip()
-    return jsonify({'ip': ip, 'port': 5000})
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

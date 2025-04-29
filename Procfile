@@ -1,1 +1,1 @@
-web: gunicorn nlp_server:app
+web: gunicorn --bind 0.0.0.0:$PORT nlp_server:app
