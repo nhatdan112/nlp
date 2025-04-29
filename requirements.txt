@@ -2,7 +2,7 @@ flask
 flask-cors
 requests
 underthesea
-torch==2.7.0+cpu
+torch==2.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
 sentence-transformers
 joblib
 gunicorn
