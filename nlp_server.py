@@ -71,7 +71,7 @@ def get_combined_context_mapping():
     return combined
 
 # Tải mô hình sentence-transformers
-model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
 
 # Hàm lưu ánh xạ học được
 def save_learned_context_mapping():
