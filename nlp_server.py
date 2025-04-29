@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify # type: ignore
 from flask_cors import CORS # type: ignore
 import requests
-from underthesea import word_tokenize # type: ignore
 from sentence_transformers import SentenceTransformer, util # type: ignore
 import joblib
 import os
@@ -84,6 +83,11 @@ def load_model():
 def save_learned_context_mapping():
     joblib.dump(LEARNED_CONTEXT_MAPPING, CONTEXT_MAPPING_FILE)
 
+# Endpoint mặc định để Render kiểm tra trạng thái dịch vụ
+@app.route('/', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'OK', 'message': 'Service is running'}), 200
+
 @app.route('/generate', methods=['POST'])
 def generate_recommendations():
     print('Received request:', request.get_json())
@@ -98,10 +102,10 @@ def generate_recommendations():
     # Tải model nếu chưa tải
     load_model()
 
-    # Tiền xử lý prompt tiếng Việt
+    # Tiền xử lý prompt
     prompt = prompt.strip().lower()
-    tokens = word_tokenize(prompt)
-    print(f"Tokens after word segmentation: {tokens}")
+    tokens = prompt.strip().split()
+    print(f"Tokens after splitting: {tokens}")
 
     # Trích xuất năm nếu có
     year = None
@@ -163,14 +167,14 @@ def generate_recommendations():
         if not movies:
             return jsonify({'error': 'No movies found matching the prompt'}), 404
 
-        # Loại bỏ trùng lặp và lấy tối đa 10 phim
+        # Loại bỏ trùng lặp và lấy tối đa 3 phim
         seen_ids = set()
         unique_movies = []
         for movie in movies:
             if movie['id'] not in seen_ids:
                 seen_ids.add(movie['id'])
                 unique_movies.append(movie)
-        movies = unique_movies[:10]
+        movies = unique_movies[:3]
 
         # Học từ ngữ cảnh (nếu có context_keywords)
         if context_keywords and genres:
@@ -229,10 +233,10 @@ def describe_movie():
     # Tải model nếu chưa tải
     load_model()
 
-    # Tiền xử lý mô tả tiếng Việt
+    # Tiền xử lý mô tả
     description = description.strip().lower()
-    tokens = word_tokenize(description)
-    print(f"Tokens after word segmentation: {tokens}")
+    tokens = description.strip().split()
+    print(f"Tokens after splitting: {tokens}")
 
     # Trích xuất năm nếu có
     year = None
@@ -310,14 +314,14 @@ def describe_movie():
         if not movies:
             return jsonify({'error': 'No movies found matching the description'}), 404
 
-        # Loại bỏ trùng lặp và lấy tối đa 10 phim
+        # Loại bỏ trùng lặp và lấy tối đa 3 phim
         seen_ids = set()
         unique_movies = []
         for movie in movies:
             if movie['id'] not in seen_ids:
                 seen_ids.add(movie['id'])
                 unique_movies.append(movie)
-        movies = unique_movies[:10]
+        movies = unique_movies[:3]
 
         # Học từ ngữ cảnh (nếu có context_keywords)
         if context_keywords and genres:
