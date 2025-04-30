@@ -3,5 +3,5 @@ flask-cors==4.0.1
 requests==2.31.0
 underthesea==6.8.4
 sentence-transformers==3.1.1
-torch==2.6.0
+torch==2.4.1  # Giảm phiên bản torch để tương thích
 joblib==1.4.2
