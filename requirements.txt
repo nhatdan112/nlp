@@ -3,5 +3,5 @@ flask-cors==4.0.1
 requests==2.31.0
 underthesea==6.8.4
 sentence-transformers==3.1.1
-torch==2.4.1  # Giảm phiên bản torch để tương thích
+torch==2.4.1 --extra-index-url https://download.pytorch.org/whl/cpu
 joblib==1.4.2
