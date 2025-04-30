@@ -1,10 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
-from underthesea import word_tokenize
-from sentence_transformers import SentenceTransformer, util
-import joblib
-import os
 from collections import defaultdict
 
 app = Flask(__name__)
@@ -51,14 +47,8 @@ CONTEXT_MAPPING = {
     "cướp bóc": ["tội phạm", "hành động"],
 }
 
-# Đường dẫn lưu trữ ánh xạ học được
-CONTEXT_MAPPING_FILE = "context_mapping.pkl"
-
-# Tải ánh xạ học được
-if os.path.exists(CONTEXT_MAPPING_FILE):
-    LEARNED_CONTEXT_MAPPING = joblib.load(CONTEXT_MAPPING_FILE)
-else:
-    LEARNED_CONTEXT_MAPPING = defaultdict(list)
+# Biến toàn cục để lưu trữ ánh xạ học được (thay vì dùng file)
+LEARNED_CONTEXT_MAPPING = defaultdict(list)
 
 # Kết hợp ánh xạ ban đầu và ánh xạ học được
 def get_combined_context_mapping():
@@ -68,13 +58,6 @@ def get_combined_context_mapping():
     for key, genres in LEARNED_CONTEXT_MAPPING.items():
         combined[key].extend(genres)
     return combined
-
-# Tải mô hình sentence-transformers
-model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-
-# Hàm lưu ánh xạ học được
-def save_learned_context_mapping():
-    joblib.dump(LEARNED_CONTEXT_MAPPING, CONTEXT_MAPPING_FILE)
 
 @app.route('/generate', methods=['POST'])
 def generate_recommendations():
@@ -87,10 +70,10 @@ def generate_recommendations():
     prompt = data.get('prompt')
     print(f"Processing prompt: {prompt}")
 
-    # Tiền xử lý prompt tiếng Việt
+    # Tiền xử lý prompt
     prompt = prompt.strip().lower()
-    tokens = word_tokenize(prompt)
-    print(f"Tokens after word segmentation: {tokens}")
+    tokens = prompt.split()
+    print(f"Tokens after splitting: {tokens}")
 
     # Trích xuất năm nếu có
     year = None
@@ -168,7 +151,6 @@ def generate_recommendations():
                     genre_name = next((name for name, info in GENRE_MAPPING.items() if info["id"] == genre_id), None)
                     if genre_name and genre_name not in LEARNED_CONTEXT_MAPPING[keyword]:
                         LEARNED_CONTEXT_MAPPING[keyword].append(genre_name)
-            save_learned_context_mapping()
 
         # Lấy thông tin chi tiết của từng phim
         results = []
@@ -215,10 +197,10 @@ def describe_movie():
     description = data.get('description')
     print(f"Processing description: {description}")
 
-    # Tiền xử lý mô tả tiếng Việt
+    # Tiền xử lý mô tả
     description = description.strip().lower()
-    tokens = word_tokenize(description)
-    print(f"Tokens after word segmentation: {tokens}")
+    tokens = description.split()
+    print(f"Tokens after splitting: {tokens}")
 
     # Trích xuất năm nếu có
     year = None
@@ -245,22 +227,6 @@ def describe_movie():
                 if genre in GENRE_MAPPING:
                     genres.add(GENRE_MAPPING[genre]["id"])
             tokens.remove(token)
-
-    # Sử dụng sentence-transformers để tìm ngữ cảnh tương đồng
-    if not context_keywords:
-        description_embedding = model.encode(description, convert_to_tensor=True)
-        context_keys = list(combined_context_mapping.keys())
-        context_embeddings = model.encode(context_keys, convert_to_tensor=True)
-        similarities = util.pytorch_cos_sim(description_embedding, context_embeddings)[0]
-        max_similarity_idx = similarities.argmax().item()
-        max_similarity = similarities[max_similarity_idx].item()
-
-        if max_similarity > 0.5:  # Ngưỡng tương đồng
-            context_keyword = context_keys[max_similarity_idx]
-            context_keywords.append(context_keyword)
-            for genre in combined_context_mapping[context_keyword]:
-                if genre in GENRE_MAPPING:
-                    genres.add(GENRE_MAPPING[genre]["id"])
 
     # Loại bỏ từ khóa không cần thiết
     tokens = [token for token in tokens if token not in ['phim', 'một', 'của', 'về']]
@@ -312,7 +278,6 @@ def describe_movie():
                     genre_name = next((name for name, info in GENRE_MAPPING.items() if info["id"] == genre_id), None)
                     if genre_name and genre_name not in LEARNED_CONTEXT_MAPPING[keyword]:
                         LEARNED_CONTEXT_MAPPING[keyword].append(genre_name)
-            save_learned_context_mapping()
 
         # Trả về danh sách tiêu đề phim
         movie_titles = [movie['title'] for movie in movies]
